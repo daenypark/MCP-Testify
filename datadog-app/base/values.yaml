@@ -1,0 +1,111 @@
+datadog:
+  apiKeyExistingSecret: datadog-agent
+  clusterName: minikube
+  kubelet:
+    tlsVerify: false
+  logs:
+    enabled: false
+    containerCollectAll: false
+  # containerCollectUsingFiles: true
+  processAgent:
+    enabled: true
+    processCollection: true
+  orchestratorExplorer:
+    enabled: true
+  ## Enable apm agent and provide custom configs
+  apm:
+    socketEnabled: true
+    # datadog.apm.portEnabled -- Enable APM over TCP communication (port 8126 by default)
+
+    ## ref: https://docs.datadoghq.com/agent/kubernetes/apm/
+    portEnabled: false
+
+  collectEvents: true
+
+  kubeStateMetricsCore:
+    enabled: true
+    #collectApiServicesMetrics: true
+
+  ignoreAutoConfig:
+    - istio
+    - kube_controller_manager
+    - etcd
+    - kube_scheduler
+  # confd:
+  #   istio.yaml: |-
+  #     ad_identifiers:
+  #     - proxyv2
+  #     instances:
+  #     - use_openmetrics: true
+  #       istio_mesh_endpoint: http://%%host%%:15020/stats/prometheus
+  #       extra_metrics:
+  #       - pilot_debounce_time.*
+    # openmetrics.yaml: |-
+    #   ad_identifiers:
+    #     - example-server
+    #   init_config:
+    #   instances:
+    #     - openmetrics_endpoint: http://%%host%%:%%port%%/metrics
+    #       metrics:
+    #         - ".*"
+    #       exclude_labels:
+    #         - http_request_method
+    #       ignore_tags:
+    #         - kube_namespace
+    #         - kube_qos
+    #         - kube_ownerref_kind
+    #       send_histograms_buckets: false
+    #       send_monotonic_counter: false
+
+  remoteConfiguration:
+    enabled: true
+
+agents:
+  images:
+    tag: 7.63.3
+
+clusterAgent:
+  enabled: true
+  image:
+    name: cluster-agent
+    tag: 7.61.0
+  env:
+  - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+    valueFrom:
+      secretKeyRef:
+        key: token
+        name: datadog-cluster-agent
+
+  # confd:
+  #   kubernetes_state_core.yaml: |-
+  #     cluster_check: false
+  #     init_config:
+  #     instances:
+  #       - skip_leader_election: false
+  #         collectors:
+  #         - pods
+  #         - replicationcontrollers
+  #         - statefulsets
+  #         - nodes
+  #         - cronjobs
+  #         - jobs
+  #         - replicasets
+  #         - deployments
+  #         - configmaps
+  #         - services
+  #         - endpoints
+  #         - daemonsets
+  #         - horizontalpodautoscalers
+  #         - poddisruptionbudgets
+  #         - limitranges
+  #         - resourcequotas
+  #         - secrets
+  #         - namespaces
+  #         - persistentvolumeclaims
+  #         - persistentvolumes
+  #         - ingresses
+  #         - storageclasses
+  #         - volumeattachments
+  #         - apiservices
+  #         - customresourcedefinitions
+

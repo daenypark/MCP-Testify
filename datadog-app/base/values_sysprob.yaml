@@ -1,0 +1,34 @@
+datadog:
+  apiKeyExistingSecret: datadog-agent
+  clusterName: minikube
+  site: "datadoghq.com"
+  securityContext:
+    runAsUser: 100
+    runAsGroup: 0
+    fsGroup: 0
+  kubelet:
+    tlsVerify: false
+  networkMonitoring:
+    enabled: true
+
+  logs:
+    enabled: true
+    containerCollectAll: true
+
+agents:
+  image:
+    tag: 7.63.3
+  # podSecurity:
+  #   seccompProfiles: Unconfined
+  #   privileged: false
+  containers:
+    initContainers:
+      securityContext:
+        runAsUser: 0
+    systemProbe:
+      logLevel: DEBUG
+      securityContext:
+        privileged: false
+        runAsUser: 0
+        capabilities:
+          add: ["SYS_ADMIN","SYS_RESOURCE" ,"SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN", "DAC_READ_SEARCH"]

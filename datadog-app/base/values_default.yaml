@@ -1,0 +1,47 @@
+datadog:
+  apiKeyExistingSecret: datadog-agent
+  clusterName: minikube
+  kubelet:
+    tlsVerify: false
+  logs:
+    enabled: false
+    containerCollectAll: false
+  # containerCollectUsingFiles: true
+  processAgent:
+    enabled: true
+    processCollection: true
+  orchestratorExplorer:
+    enabled: true
+  ## Enable apm agent and provide custom configs
+  apm:
+    socketEnabled: true
+    # datadog.apm.portEnabled -- Enable APM over TCP communication (port 8126 by default)
+
+    ## ref: https://docs.datadoghq.com/agent/kubernetes/apm/
+    portEnabled: false
+
+  ignoreAutoConfig:
+    - istio
+    - kube_controller_manager
+    - etcd
+    - kube_scheduler
+  # confd:
+  #   istio.yaml: |-
+  #     ad_identifiers:
+  #     - proxyv2
+  #     instances:
+  #     - use_openmetrics: true
+  #       istio_mesh_endpoint: http://%%host%%:15020/stats/prometheus
+  #       extra_metrics:
+  #       - pilot_debounce_time.*
+
+  remoteConfiguration:
+    enabled: true
+
+clusterAgent:
+  env:
+  - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+    valueFrom:
+      secretKeyRef:
+        key: token
+        name: datadog-cluster-agent

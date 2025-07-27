@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tomcat
+  labels:
+    app: tomcat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tomcat
+  template:
+    metadata:
+      labels:
+        app: tomcat
+      annotations:
+        ad.datadoghq.com/tomcat.checks: |
+          {
+            "tomcat": {
+              "init_config": {
+                "is_jmx": true,
+                "collect_default_metrics": true,
+                "collect_default_jvm_metrics": true
+              },
+              "instances": [{
+                "host": "%%host%%",
+                "port": "9012"
+              }]
+            }
+          }      
+    spec:
+      containers:
+        - name: tomcat
+          image: tomcat:9.0.27-jdk12-adoptopenjdk-hotspot
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: jmx
+              containerPort: 9012
+          env:
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: JAVA_OPTS
+            value: >-
+              -Xms256m -Xmx6144m
+              -Dcom.sun.management.jmxremote
+              -Dcom.sun.management.jmxremote.authenticate=false
+              -Dcom.sun.management.jmxremote.ssl=false
+              -Dcom.sun.management.jmxremote.local.only=false
+              -Dcom.sun.management.jmxremote.port=9012
+              -Dcom.sun.management.jmxremote.rmi.port=9012
+              -Djava.rmi.server.hostname=localhost
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: tomcat
+  name: tomcat
+spec:
+  type: NodePort
+  selector:
+    app: tomcat
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    nodePort: 30080
+  - name: jmx
+    port: 9012
+    targetPort: 9012
+    nodePort: 30081 

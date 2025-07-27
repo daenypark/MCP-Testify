@@ -1,0 +1,65 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: datadog
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://helm.datadoghq.com
+    targetRevision: 3.116.0
+    chart: datadog
+    helm:
+      releaseName: datadog
+      values: |
+        datadog:
+          apiKeyExistingSecret: datadog-agent
+          clusterName: minikube
+          kubelet:
+            tlsVerify: false
+          logs:
+            enabled: false
+            containerCollectAll: false
+          # containerCollectUsingFiles: true
+          processAgent:
+            enabled: true
+            processCollection: true
+          orchestratorExplorer:
+            enabled: true
+          ## Enable apm agent and provide custom configs
+          apm:
+            socketEnabled: true
+            # datadog.apm.portEnabled -- Enable APM over TCP communication (port 8126 by default)
+
+            ## ref: https://docs.datadoghq.com/agent/kubernetes/apm/
+            portEnabled: false
+
+          ignoreAutoConfig:
+            - istio
+            - kube_controller_manager
+            - etcd
+            - kube_scheduler
+
+          remoteConfiguration:
+            enabled: true
+
+        agents:
+          image:
+            tagSuffix: "jmx"
+
+        clusterAgent:
+          env:
+          - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: token
+                name: datadog-cluster-agent
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: datadog
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
