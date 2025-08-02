@@ -14,6 +14,9 @@ Host (macOS) → Vagrant VM (Ubuntu 20.04) → Docker Containers
                                         └── Frontend Web App
 ```
 
+<img width="2342" height="1945" alt="image" src="https://github.com/user-attachments/assets/f202d1bb-bd83-4fc6-9a6c-b3f24c3df124" />
+
+
 ## 🚀 Quick Start
 
 ### 1. Start Vagrant VM
