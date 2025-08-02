@@ -1,0 +1,118 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: wedding-api
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/wedding_db
+    username: wedding_user
+    password: wedding_pass
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        
+  # Redis configuration disabled - not needed for wedding app
+  # redis:
+  #   host: redis
+  #   port: 6379
+  #   timeout: 2000ms
+  #   jedis:
+  #     pool:
+  #       max-active: 10
+  #       max-idle: 10
+  #       min-idle: 1
+        
+  cache:
+    type: simple
+    # Redis caching disabled - using simple in-memory cache
+    # redis:
+    #   time-to-live: 600000 # 10 minutes
+
+# Actuator endpoints for health checks and metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      statsd:
+        enabled: true
+        host: datadog-agent
+        port: 8125
+        flavor: datadog
+
+# Custom application properties
+wedding:
+  external-apis:
+    weather:
+      url: https://api.openweathermap.org/data/2.5
+      timeout: 5000
+    maps:
+      url: https://maps.googleapis.com/maps/api
+      timeout: 3000
+  
+  performance:
+    slow-query-threshold: 2000
+    cpu-intensive-iterations: 1000000
+    
+  metrics:
+    custom-tags:
+      service: wedding-api
+      environment: development
+
+logging:
+  level:
+    com.wedding: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{dd.trace_id},%X{dd.span_id}] %logger{36} - %msg%n"
+  file:
+    name: /app/logs/wedding-api.log
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:postgresql://postgres:5432/wedding_db
+    username: wedding_user
+    password: wedding_pass
+  # Redis configuration disabled - not needed for wedding app
+  # redis:
+  #   host: redis
+  #   port: 6379
+  #   timeout: 2000ms
+  #   jedis:
+  #     pool:
+  #       max-active: 10
+  #       max-idle: 10
+  #       min-idle: 1
+  cache:
+    type: simple
+    # redis:
+    #   time-to-live: 600000 
