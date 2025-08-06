@@ -20,9 +20,9 @@ Vagrant.configure("2") do |config|
       v.gui = true
       v.linked_clone = false
       v.vmx["ethernet0.virtualdev"] = "vmxnet3"
-      # Increase memory for Docker containers
-      v.vmx["memsize"] = "4096"
-      v.vmx["numvcpus"] = "2"
+      # Increase memory for Kubernetes and Docker containers
+      v.vmx["memsize"] = "8192"
+      v.vmx["numvcpus"] = "4"
   end
 
   # Port forwarding for wedding web app
@@ -31,57 +31,17 @@ Vagrant.configure("2") do |config|
   # Optional: Direct access to services during development
   config.vm.network "forwarded_port", guest: 3000, host: 3000, host_ip: "127.0.0.1"
   config.vm.network "forwarded_port", guest: 8081, host: 8081, host_ip: "127.0.0.1"
-
-  # Disable automatic box update checking. If you disable this, then
-  # boxes will only be checked for updates when the user runs
-  # `vagrant box outdated`. This is not recommended.
-  # config.vm.box_check_update = false
-
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine. In the example below,
-  # accessing "localhost:8080" will access port 80 on the guest machine.
-  # NOTE: This will enable public access to the opened port
-  # config.vm.network "forwarded_port", guest: 80, host: 8080
-
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine and only allow access
-  # via 127.0.0.1 to disable public access
-  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
-
-  # Create a private network, which allows host-only access to the machine
-  # using a specific IP.
-  # config.vm.network "private_network", ip: "192.168.33.10"
-
-  # Create a public network, which generally matched to bridged network.
-  # Bridged networks make the machine appear as another physical device on
-  # your network.
-  # config.vm.network "public_network"
-
-  # Share an additional folder to the guest VM. The first argument is
-  # the path on the host to the actual folder. The second argument is
-  # the path on the guest to mount the folder. And the optional third
-  # argument is a set of non-required options.
-  # config.vm.synced_folder "../data", "/vagrant_data"
+  
+  # Argo CD UI
+  config.vm.network "forwarded_port", guest: 30007, host: 30007, host_ip: "127.0.0.1"
+  
+  # Kubernetes API
+  config.vm.network "forwarded_port", guest: 6443, host: 6443, host_ip: "127.0.0.1"
 
   # Ensure the current directory is properly synced
   config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__auto: true, rsync__exclude: [".git/", "backend/logs/", "nginx/logs/"]
 
-  # Provider-specific configuration so you can fine-tune various
-  # backing providers for Vagrant. These expose provider-specific options.
-  # Example for VirtualBox:
-  #
-  # config.vm.provider "virtualbox" do |vb|
-  #   # Display the VirtualBox GUI when booting the machine
-  #   vb.gui = true
-  #
-  #   # Customize the amount of memory on the VM:
-  #   vb.memory = "1024"
-  # end
-  #
-  # View the documentation for the provider you are using for more
-  # information on available options.
-
-  # Provision the VM with Docker and Docker Compose
+  # Provision the VM with Docker, Kubernetes (k3s), and Argo CD
   config.vm.provision "shell", inline: <<-SHELL
     # Update system
     apt-get update
@@ -106,7 +66,44 @@ Vagrant.configure("2") do |config|
     # Install utilities
     apt-get install -y curl wget git vim htop
     
-    echo "Docker and tools installed successfully!"
+    # Install kubectl
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
+    chmod +x kubectl
+    mv kubectl /usr/local/bin/
+    
+    # Install k3s (lightweight Kubernetes)
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--docker" sh -
+    
+    # Wait for k3s to be ready
+    sleep 30
+    
+    # Copy kubeconfig for vagrant user
+    mkdir -p /home/vagrant/.kube
+    cp /etc/rancher/k3s/k3s.yaml /home/vagrant/.kube/config
+    chown -R vagrant:vagrant /home/vagrant/.kube
+    
+    # Install Argo CD
+    kubectl create namespace argocd
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    
+    # Wait for Argo CD to be ready
+    sleep 60
+    
+    # Get Argo CD admin password
+    kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d > /home/vagrant/argocd-password.txt
+    chown vagrant:vagrant /home/vagrant/argocd-password.txt
+    
+    # Install Argo CD CLI
+    curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-arm64
+    chmod +x /usr/local/bin/argocd
+    
+    # Create namespace for wedding app
+    kubectl create namespace wedding-app
+    
+    echo "Kubernetes and Argo CD installed successfully!"
+    echo "Argo CD UI: http://localhost:30007"
+    echo "Username: admin"
+    echo "Password: $(cat /home/vagrant/argocd-password.txt)"
     echo "Please run 'vagrant reload' to apply group changes"
   SHELL
 end

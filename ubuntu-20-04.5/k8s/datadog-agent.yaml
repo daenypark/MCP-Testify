@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent
+  namespace: wedding-app
+spec:
+  selector:
+    matchLabels:
+      app: datadog-agent
+  template:
+    metadata:
+      labels:
+        app: datadog-agent
+    spec:
+      containers:
+      - name: datadog-agent
+        image: gcr.io/datadoghq/agent:7
+        env:
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: wedding-app-secret
+              key: DD_API_KEY
+        - name: DD_SITE
+          valueFrom:
+            secretKeyRef:
+              name: wedding-app-secret
+              key: DD_SITE
+        - name: DD_APM_ENABLED
+          value: "true"
+        - name: DD_APM_NON_LOCAL_TRAFFIC
+          value: "true"
+        - name: DD_DOGSTATSD_NON_LOCAL_TRAFFIC
+          value: "true"
+        - name: DD_LOGS_ENABLED
+          value: "true"
+        - name: DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL
+          value: "true"
+        - name: DD_PROCESS_AGENT_ENABLED
+          value: "true"
+        - name: DD_DOCKER_LABELS_AS_TAGS
+          value: "true"
+        - name: DD_TAGS
+          value: "env:development,service:wedding-app"
+        ports:
+        - containerPort: 8125
+          name: dogstatsdport
+          protocol: UDP
+        - containerPort: 8126
+          name: traceport
+          protocol: TCP
+        volumeMounts:
+        - name: dockersocket
+          mountPath: /var/run/docker.sock
+        - name: proc
+          mountPath: /host/proc
+          readOnly: true
+        - name: cgroup
+          mountPath: /host/sys/fs/cgroup
+          readOnly: true
+        - name: debugfs
+          mountPath: /sys/kernel/debug
+          readOnly: true
+        securityContext:
+          privileged: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+      volumes:
+      - name: dockersocket
+        hostPath:
+          path: /var/run/docker.sock
+      - name: proc
+        hostPath:
+          path: /proc
+      - name: cgroup
+        hostPath:
+          path: /sys/fs/cgroup
+      - name: debugfs
+        hostPath:
+          path: /sys/kernel/debug
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: datadog-agent
+  namespace: wedding-app
+spec:
+  selector:
+    app: datadog-agent
+  ports:
+  - port: 8125
+    targetPort: 8125
+    name: dogstatsd
+    protocol: UDP
+  - port: 8126
+    targetPort: 8126
+    name: traces
+    protocol: TCP
+  type: ClusterIP 

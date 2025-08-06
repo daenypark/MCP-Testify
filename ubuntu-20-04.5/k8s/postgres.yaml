@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wedding-postgres
+  namespace: wedding-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wedding-postgres
+  template:
+    metadata:
+      labels:
+        app: wedding-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:13-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "wedding_db"
+        - name: POSTGRES_USER
+          value: "wedding_user"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wedding-app-secret
+              key: SPRING_DATASOURCE_PASSWORD
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: postgres-storage
+        emptyDir: {}
+      - name: init-script
+        configMap:
+          name: postgres-init-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wedding-postgres
+  namespace: wedding-app
+spec:
+  selector:
+    app: wedding-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-script
+  namespace: wedding-app
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS wedding_events (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        date TIMESTAMP NOT NULL,
+        location VARCHAR(500),
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE IF NOT EXISTS guests (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE,
+        phone VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE IF NOT EXISTS rsvps (
+        id SERIAL PRIMARY KEY,
+        guest_id INTEGER REFERENCES guests(id),
+        event_id INTEGER REFERENCES wedding_events(id),
+        status VARCHAR(50) NOT NULL,
+        dietary_restrictions TEXT,
+        plus_one BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ); 

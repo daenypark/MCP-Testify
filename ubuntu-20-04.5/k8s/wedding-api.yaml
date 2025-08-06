@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wedding-api
+  namespace: wedding-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: wedding-api
+  template:
+    metadata:
+      labels:
+        app: wedding-api
+    spec:
+      containers:
+      - name: wedding-api
+        image: wedding-api:latest
+        imagePullPolicy: Never  # Use local image
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: wedding-app-config
+        - secretRef:
+            name: wedding-app-secret
+        env:
+        - name: JAVA_TOOL_OPTIONS
+          value: "-javaagent:/opt/datadog/dd-java-agent.jar"
+        - name: DD_AGENT_HOST
+          value: "datadog-agent"
+        - name: DD_TRACE_AGENT_PORT
+          value: "8126"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: logs
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wedding-api
+  namespace: wedding-app
+spec:
+  selector:
+    app: wedding-api
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wedding-api-nodeport
+  namespace: wedding-app
+spec:
+  selector:
+    app: wedding-api
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30081
+  type: NodePort 
