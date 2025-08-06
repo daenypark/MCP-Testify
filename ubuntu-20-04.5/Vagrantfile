@@ -75,12 +75,33 @@ Vagrant.configure("2") do |config|
     curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--docker" sh -
     
     # Wait for k3s to be ready
-    sleep 30
+    echo "Waiting for k3s to be ready..."
+    timeout=60
+    counter=0
+    while ! kubectl get nodes >/dev/null 2>&1 && [ $counter -lt $timeout ]; do
+        echo "Waiting for k3s API server... ($counter/$timeout)"
+        sleep 2
+        counter=$((counter + 2))
+    done
+    
+    if [ $counter -eq $timeout ]; then
+        echo "ERROR: k3s API server is not responding after $timeout seconds"
+        systemctl status k3s
+        exit 1
+    fi
+    
+    echo "k3s is ready!"
     
     # Copy kubeconfig for vagrant user
     mkdir -p /home/vagrant/.kube
     cp /etc/rancher/k3s/k3s.yaml /home/vagrant/.kube/config
     chown -R vagrant:vagrant /home/vagrant/.kube
+    
+    # Fix kubeconfig server URL
+    sed -i 's|server: https://127.0.0.1:6443|server: https://localhost:6443|g' /home/vagrant/.kube/config
+    
+    # Set KUBECONFIG environment variable
+    echo 'export KUBECONFIG=/home/vagrant/.kube/config' >> /home/vagrant/.bashrc
     
     # Install Argo CD
     kubectl create namespace argocd
