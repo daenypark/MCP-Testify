@@ -4,7 +4,24 @@ This guide helps resolve common issues when setting up the Ubuntu 20.04 Vagrant 
 
 ## 🔧 Common Issues and Solutions
 
-### 1. k3s Connection Refused Error
+### 1. Vagrant Provision Failure
+
+**Error:**
+```
+The SSH command responded with a non-zero exit status. Vagrant
+assumes that this means the command failed.
+```
+
+**Solution:**
+```bash
+# SSH into the VM and run manual provision
+vagrant ssh
+cd /vagrant
+chmod +x provision.sh
+./provision.sh
+```
+
+### 2. k3s Connection Refused Error
 
 **Error:**
 ```
@@ -188,9 +205,13 @@ curl http://localhost:30007
 vagrant destroy -f
 vagrant up
 
-# SSH and run setup
+# If Vagrant provision fails, SSH and run manual provision
 vagrant ssh
 cd /vagrant
+chmod +x provision.sh
+./provision.sh
+
+# Then run the Argo CD setup
 ./setup-argocd.sh
 ```
 
